@@ -2,7 +2,18 @@
 
 This project features a web application and an agent designed to help users process information from their SharePoint content and generate summary reports. The application leverages the Azure AI Foundry SDK to host and communicate with the agent, which utilizes the Copilot Retrieval API for semantic queries of relevant SharePoint content. The Retrieval API relies on SharePoint’s built-in semantic index and access control.
 
-## Solution Overview
+<br/>
+
+<div align="center">
+  
+[**SOLUTION OVERVIEW**](#solution-overview) \| [**Getting started**](#quick-deploy) \| [**BUSINESS SCENARIO**](#business-scenario) \| [**SUPPORTING DOCUMENTATION**](#supporting-documentation)
+
+</div>
+<br/>
+
+<h2><img src="./docs/images/readme/solution-overview.png" width="48" />
+Solution overview
+</h2>
 
 This solution deploys a web-based chat application with AI capabilities running in Azure Container App.
 
@@ -10,9 +21,14 @@ The application leverages Azure AI Foundry projects and Azure AI services to pro
 
 This solution creates an Azure AI Foundry project and Azure AI services. Instructions are provided for deployment through Azure Developer CLI and local development environment.
 
-### Solution Architecture
+### Solution architecture
 
 The app code runs in Azure Container Apps to process user requests for policy compliance checking. It leverages Azure AI projects and Azure AI services, including the model and Microsoft Graph API for SharePoint content retrieval.
+
+|![image](./docs/images/readme/agent-with-sp-knowledge-m1-solution-diagram.png)|
+|---|
+
+<br/>
 
 ### Key Features
 
