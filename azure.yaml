@@ -2,7 +2,7 @@
 
 name: AgentWithSPKnowledgeViaRetrieval
 metadata:
-    template: app-with-sharepoint-knowledge-and-actions
+    template: app-with-sharepoint-knowledge
 services:
     AgentWithSPKnowledgeViaRetrieval:
         project: ./AgentWithSPKnowledgeViaRetrieval.csproj
