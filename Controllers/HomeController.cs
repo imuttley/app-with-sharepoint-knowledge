@@ -33,7 +33,7 @@ public class HomeController : Controller
     public IActionResult Index()
     {
         // Step 1: Check if user is authenticated
-        if (!User.Identity?.IsAuthenticated ?? true)
+        if (!User?.Identity?.IsAuthenticated ?? true)
         {
             _logger.LogInformation("User not authenticated, showing sign-in interface");
             ViewBag.UserName = null;
@@ -41,8 +41,8 @@ public class HomeController : Controller
             return View();
         }
 
-        _logger.LogInformation("User authenticated: {User}", User.Identity?.Name);
-        ViewBag.UserName = User.Identity?.Name;
+        _logger.LogInformation("User authenticated: {User}", User?.Identity?.Name);
+        ViewBag.UserName = User?.Identity?.Name;
         ViewBag.RequiresAuthentication = false;
 
         // Skip consent step - all scopes are requested during authentication
@@ -77,7 +77,7 @@ public class HomeController : Controller
             ViewBag.ComplianceResult = response.LlmResponse;
             ViewBag.FileAuthor = response.FileAuthor;
             ViewBag.Timestamp = response.Timestamp;
-            ViewBag.UserName = User.Identity?.Name;
+            ViewBag.UserName = User?.Identity?.Name;
             ViewBag.ReadyForCompliance = true;
 
             // Send email with results
@@ -126,7 +126,7 @@ public class HomeController : Controller
         {
             _logger.LogError(ex, "Error processing compliance check");
             ViewBag.Error = "An error occurred while processing the compliance check. Please try again.";
-            ViewBag.UserName = User.Identity?.Name;
+            ViewBag.UserName = User?.Identity?.Name;
             ViewBag.ReadyForCompliance = true;
             return View("Index");
         }
