@@ -93,7 +93,7 @@
       This process is automatic and only applies for local development.
       
       1. **Ensure Your Account Has Permissions**:
-         - Log in through `azd auth login` with an account that permissions to create secrets for the app configured in your `appsettings.json`'s `AzureAd:ClientId`
+         - Log in through `azd auth login` with an account that has permissions to create secrets for the app configured in your `appsettings.json`'s `AzureAd:ClientId`
 
       2. **Run the Application**:
          ```bash
@@ -102,12 +102,21 @@
 
          The application will automatically:
          - Check if a client secret exists in configuration
-         - Create a new secret if none exists
+         - Get your current user ID from Microsoft Graph
+         - Clean up any existing secrets created by you (same user ID)
+         - Create a new user-specific secret with format: `{user-guid}-Auto-Generated-{date}` (expires in 24 hours)
          - Configure it for the current session
 
-      3. **Verify Operation**:
-         - Check the console output during startup for secret creation messages
-         - The application will automatically handle secret creation and configuration
+      3. **Multi-Developer Support**:
+         - Each developer gets their own secrets identified by their user GUID
+         - Previous secrets from the same user are automatically cleaned up
+         - No conflicts between different team members
+         - Secrets are named for easy identification: `12345678-1234-1234-1234-123456789012-Auto-Generated-2025-11-13-10-30`
+         - Auto-generated secrets expire in 24 hours
+
+      4. **Verify Operation**:
+         - Check the console output during startup for secret creation and cleanup messages
+         - The application will automatically handle user-specific secret management
 
 5. **Setup Access for Azure AI Foundry**
    You can skip this if you deployed your app via `azd up` as access to Foundry is granted through Managed Identities.
