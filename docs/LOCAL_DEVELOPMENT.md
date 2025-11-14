@@ -72,11 +72,8 @@
       ```json
       {
         "AzureAd": {
-          "Instance": "https://login.microsoftonline.com/",
           "TenantId": "your-tenant-id",
-          "ClientId": "your-client-id", 
-          "CallbackPath": "/signin-oidc",
-          "SignedOutCallbackPath": "/signout-callback-oidc"
+          "ClientId": "your-client-id"
         },
         "AzureAIFoundry": {
           "ProjectEndpoint": "your-azure-ai-inference-endpoint",
