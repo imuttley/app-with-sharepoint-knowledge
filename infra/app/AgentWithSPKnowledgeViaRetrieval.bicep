@@ -9,6 +9,8 @@ param containerRegistryName string
 param containerAppsEnvironmentName string
 param exists bool
 param resourceToken string
+param playgroundUrl string
+param modelName string
 @secure()
 param appDefinition object
 
@@ -23,9 +25,8 @@ var env = map(filter(appSettingsArray, i => i.?secret == null), i => {
   value: i.value
 })
 
-resource identity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31' = {
+resource identity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31' existing = {
   name: identityName
-  location: location
 }
 
 // Configure the Azure AD application with federated credential to trust the managed identity
@@ -120,12 +121,24 @@ resource app 'Microsoft.App/containerApps@2023-05-02-preview' = {
               value: '8080'
             }
             {
+              name: 'AzureAd__Instance'
+              value: environment().authentication.loginEndpoint
+            }
+            {
               name: 'AzureAd__TenantId'
               value: tenant().tenantId
             }
             {
               name: 'AzureAd__ClientId'
               value: azureAdApp.appId
+            }
+            {
+              name: 'AzureAd__CallbackPath'
+              value: '/signin-oidc'
+            }
+            {
+              name: 'AzureAd__SignedOutCallbackPath'
+              value: '/signout-callback-oidc'
             }
             {
               name: 'AzureAd__ClientCredentials__0__SourceType'
@@ -138,6 +151,22 @@ resource app 'Microsoft.App/containerApps@2023-05-02-preview' = {
             {
               name: 'AzureAd__ClientCredentials__0__TokenExchangeUrl'
               value: 'api://AzureADTokenExchange/.default'
+            }
+            {
+              name: 'AzureAIFoundry__ProjectEndpoint'
+              value: playgroundUrl
+            }
+            {
+              name: 'AzureAIFoundry__ModelName'
+              value: modelName
+            }
+            {
+              name: 'Microsoft365__TenantId'
+              value: tenant().tenantId
+            }
+            {
+              name: 'Microsoft365__ClientId'
+              value: azureAdApp.appId
             }
           ],
           env,
@@ -163,7 +192,5 @@ output defaultDomain string = containerAppsEnvironment.properties.defaultDomain
 output name string = app.name
 output uri string = 'https://${app.properties.configuration.ingress.fqdn}'
 output id string = app.id
-output managedIdentityPrincipalId string = identity.properties.principalId
-output managedIdentityClientId string = identity.properties.clientId
 output appId string = azureAdApp.appId
 output appUniqueName string = azureAdApp.uniqueName

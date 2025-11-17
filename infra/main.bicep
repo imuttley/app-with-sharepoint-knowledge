@@ -34,6 +34,16 @@ resource rg 'Microsoft.Resources/resourceGroups@2022-09-01' = {
   tags: tags
 }
 
+module identity './shared/identity.bicep' = {
+  name: 'identity'
+  params: {
+    name: '${abbrs.managedIdentityUserAssignedIdentities}agentwith-${resourceToken}'
+    location: location
+    tags: tags
+  }
+  scope: rg
+}
+
 module registry './shared/registry.bicep' = {
   name: 'registry'
   params: {
@@ -55,27 +65,42 @@ module appsEnv './shared/apps-env.bicep' = {
   scope: rg
 }
 
+module foundry './shared/foundry.bicep' = {
+  name: 'foundry'
+  params: {
+    name: '${abbrs.cognitiveServicesAccounts}${resourceToken}'
+    location: location
+    tags: tags
+    identityId: identity.outputs.id
+  }
+  scope: rg
+}
+
 module AgentWithSPKnowledgeViaRetrieval './app/AgentWithSPKnowledgeViaRetrieval.bicep' = {
   name: 'AgentWithSPKnowledgeViaRetrieval'
   params: {
     name: '${abbrs.appContainerApps}agentwith-${resourceToken}'
     location: location
     tags: tags
-    identityName: '${abbrs.managedIdentityUserAssignedIdentities}agentwith-${resourceToken}'
+    identityName: identity.outputs.name
     containerAppsEnvironmentName: appsEnv.outputs.name
     containerRegistryName: registry.outputs.name
     exists: AgentWithSPKnowledgeViaRetrievalExists
     appDefinition: AgentWithSPKnowledgeViaRetrievalDefinition
     resourceToken: resourceToken
+    playgroundUrl: foundry.outputs.playgroundUrl
+    modelName: foundry.outputs.modelName
   }
   scope: rg
 }
 
 output AZURE_CONTAINER_REGISTRY_ENDPOINT string = registry.outputs.loginServer
-output MANAGED_IDENTITY_CLIENT_ID string = AgentWithSPKnowledgeViaRetrieval.outputs.managedIdentityClientId
-output MANAGED_IDENTITY_PRINCIPAL_ID string = AgentWithSPKnowledgeViaRetrieval.outputs.managedIdentityPrincipalId
+output MANAGED_IDENTITY_CLIENT_ID string = identity.outputs.clientId
+output MANAGED_IDENTITY_PRINCIPAL_ID string = identity.outputs.principalId
 output AZURE_CLIENT_ID string = AgentWithSPKnowledgeViaRetrieval.outputs.appId
 output AZURE_APP_UNIQUE_NAME string = AgentWithSPKnowledgeViaRetrieval.outputs.appUniqueName
+output AZURE_OPENAI_ENDPOINT string = foundry.outputs.endpoint
+output AZURE_OPENAI_PLAYGROUND_URL string = foundry.outputs.playgroundUrl
 
 // Output the principal ID parameter for reference (used by azd)
 output DEPLOYMENT_PRINCIPAL_ID string = principalId
