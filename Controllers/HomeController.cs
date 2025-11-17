@@ -55,12 +55,13 @@ public class HomeController : Controller
 
     [Authorize]
     [AuthorizeForScopes(Scopes = new string[] { 
+        "https://cognitiveservices.azure.com/user_impersonation"
+    })]
+    [AuthorizeForScopes(Scopes = new string[] { 
         "https://graph.microsoft.com/Files.Read.All", 
         "https://graph.microsoft.com/Sites.Read.All", 
         "https://graph.microsoft.com/Mail.Send", 
-        "https://graph.microsoft.com/User.Read.All",
-        // This will trigger another consent
-        "https://cognitiveservices.azure.com/user_impersonation"
+        "https://graph.microsoft.com/User.Read.All" 
     })]
     [EnsureTokensAcquired]
     [HttpPost]
