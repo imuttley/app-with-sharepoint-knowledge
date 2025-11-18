@@ -103,13 +103,12 @@
          - The application will automatically handle user-specific secret management
 
 5. **Setup Access for Azure AI Foundry**
-   You can skip this if you deployed your app via `azd up` as access to Foundry is granted through Managed Identities.
+   Access to Foundry will use a Managed Identity for deployed resources and `azd auth login` or `az login` credentials for local development. Make sure your `azd/az` logged in-user has access to Foundry this way:
 
-   In Local Development, users need to be individually granted access to the 
    1. Go to your Azure AI Foundry project in https://ai.azure.com/
    2. Go to **Management Center** at the bottom
    3. Under **All Resources** select your project
-   4. Under **Resource** > **Users** click the **+ New User**
+   4. Under **Resource** > **Users**. Check if your user already has access through Inherited Access. If not, click the **+ New User**
    5. Add all the users that will use your app to access this Foundry resource as an **Azure AI User**
 
 6. **Run Locally**

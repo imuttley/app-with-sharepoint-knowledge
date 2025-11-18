@@ -1,6 +1,9 @@
 using Microsoft.Identity.Web;
 using Microsoft.Identity.Client;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Configuration;
+using Azure.Identity;
+using Azure.Core;
 
 namespace AgentWithSPKnowledgeViaRetrieval.Services;
 
@@ -14,6 +17,8 @@ public interface IMultiResourceTokenService
 public class MultiResourceTokenService : IMultiResourceTokenService
 {
     private readonly ITokenAcquisition _tokenAcquisition;
+    private readonly IConfiguration _configuration;
+    private readonly IHostEnvironment _environment;
     private readonly ILogger<MultiResourceTokenService> _logger;
     
     private static readonly string[] GraphScopes = {
@@ -29,9 +34,13 @@ public class MultiResourceTokenService : IMultiResourceTokenService
 
     public MultiResourceTokenService(
         ITokenAcquisition tokenAcquisition,
+        IConfiguration configuration,
+        IHostEnvironment environment,
         ILogger<MultiResourceTokenService> logger)
     {
         _tokenAcquisition = tokenAcquisition;
+        _configuration = configuration;
+        _environment = environment;
         _logger = logger;
     }
 
@@ -59,16 +68,45 @@ public class MultiResourceTokenService : IMultiResourceTokenService
     {
         try
         {
-            var token = await _tokenAcquisition.GetAccessTokenForUserAsync(AzureAIScopes);
-            _logger.LogDebug("Successfully acquired Azure AI token");
-            return token;
+            if (_environment.IsDevelopment())
+            {
+                // Use DefaultAzureCredential for local development (excludes environment credentials)
+                _logger.LogDebug("Acquiring Azure AI token using DefaultAzureCredential (local development)");
+                
+                var credentialOptions = new DefaultAzureCredentialOptions
+                {
+                    ExcludeEnvironmentCredential = true
+                };
+                var credential = new DefaultAzureCredential(credentialOptions);
+                var tokenRequestContext = new TokenRequestContext(AzureAIScopes);
+                var tokenResult = await credential.GetTokenAsync(tokenRequestContext);
+                
+                _logger.LogDebug("Successfully acquired Azure AI token using DefaultAzureCredential");
+                return tokenResult.Token;
+            }
+            else
+            {
+                // Use managed identity for Azure AI services in production
+                var managedIdentityClientId = _configuration["AzureAd:ClientCredentials:0:ManagedIdentityClientId"];
+                
+                if (string.IsNullOrEmpty(managedIdentityClientId))
+                {
+                    var errorMessage = "Managed Identity Client ID is not configured. Cannot acquire Azure AI token in production environment.";
+                    _logger.LogError(errorMessage);
+                    throw new InvalidOperationException(errorMessage);
+                }
+                
+                _logger.LogDebug("Acquiring Azure AI token using managed identity: {ClientId}", managedIdentityClientId);
+                
+                var credential = new ManagedIdentityCredential(managedIdentityClientId);
+                var tokenRequestContext = new TokenRequestContext(AzureAIScopes);
+                var tokenResult = await credential.GetTokenAsync(tokenRequestContext);
+                
+                _logger.LogDebug("Successfully acquired Azure AI token using managed identity");
+                return tokenResult.Token;
+            }
         }
-        catch (MsalUiRequiredException ex)
-        {
-            _logger.LogWarning("Azure AI token requires additional consent: {Error}", ex.Message);
-            throw;
-        }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not InvalidOperationException)
         {
             _logger.LogError(ex, "Failed to acquire Azure AI token");
             throw;
@@ -81,7 +119,7 @@ public class MultiResourceTokenService : IMultiResourceTokenService
         
         try
         {
-            // Try to acquire Graph token first
+            // Try to acquire Graph token (uses user delegation - requires consent)
             await GetGraphTokenAsync();
             _logger.LogInformation("Microsoft Graph token pre-acquired successfully");
         }
@@ -90,15 +128,7 @@ public class MultiResourceTokenService : IMultiResourceTokenService
             _logger.LogWarning(ex, "Could not pre-acquire Microsoft Graph token");
         }
 
-        try
-        {
-            // Try to acquire Azure AI token
-            await GetAzureAITokenAsync();
-            _logger.LogInformation("Azure AI token pre-acquired successfully");
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "Could not pre-acquire Azure AI token");
-        }
+        // Azure AI token uses managed identity, no pre-acquisition needed
+        _logger.LogInformation("Azure AI token will be acquired on-demand using managed identity");
     }
 }

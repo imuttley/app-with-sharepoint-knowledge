@@ -15,9 +15,11 @@ public class AppRegistrationService : IAppRegistrationService
     {
         _logger = logger;
         
-        // Create Graph client using DefaultAzureCredential
-        // This will use the same credential chain as your Key Vault setup
-        var credential = new DefaultAzureCredential();
+        var credentialOptions = new DefaultAzureCredentialOptions
+        {
+            ExcludeEnvironmentCredential = true
+        };
+        var credential = new DefaultAzureCredential(credentialOptions);
         _graphClient = new GraphServiceClient(credential);
     }
 
