@@ -5,7 +5,7 @@
 - .NET 8.0 SDK
 - Azure AI Foundry resource  
 - Microsoft 365 tenant with SharePoint
-- Azure App Registration with delegated permissions
+- Azure App Registration fully configured
 
 ## Setup Instructions
 
@@ -34,20 +34,19 @@
         - Add logout URL: `https://localhost:5001/signout-callback-oidc`
         - Enable **ID tokens** under Implicit grant and hybrid flows
 
-   3. **Create Client Secret**:
-      - Go to **Certificates & secrets**
-      - Click **New client secret**
-      - Add description and set expiration
-      - **Copy the secret value** immediately (you won't see it again)
-
-   4. **Configure API Permissions**:
+   3. **Configure API Permissions**:
       - Go to **API permissions** → **Add a permission** → **Microsoft Graph** → **Delegated permissions**
       - Add these permissions:
         - `Files.Read.All`
         - `Sites.Read.All`
         - `Mail.Send`
-        - `User.Read.All`
-      - Click **Grant admin consent**
+        - `User.Read`
+      - For Azure AD authentication for Azure AI Foundry, also add:
+        - Go to **Add a permission** → **APIs my organization uses**
+        - Search for "Microsoft Cognitive Services" or use the Application ID: `7d312290-28c8-473c-a0ed-8e53749b6d6d`
+        - Select **Delegated permissions** → `user_impersonation`
+      - **Important**: Grant admin consent for all permissions to enable seamless token acquisition
+      - Click **Grant admin consent** for all permissions
 
 3. **Upload sample files to your SharePoint site**
    1. Create a SharePoint site if you don't already have one. Keep the site URL handy to paste in the application settings in the next step.
@@ -66,32 +65,53 @@
 
       ```json
       {
-        "AzureAd": {
-          "Instance": "https://login.microsoftonline.com/",
-          "TenantId": "your-tenant-id",
-          "ClientId": "your-client-id", 
-          "ClientSecret": "your-client-secret",
-          "CallbackPath": "/signin-oidc",
-          "SignedOutCallbackPath": "/signout-callback-oidc"
-        },
-        "AzureAIFoundry": {
-          "ProjectEndpoint": "your-azure-ai-inference-endpoint",
-          "ModelName": "your-model-name",
-          "APIKey": "your-api-key"
-        },
-        "Microsoft365": {
-          "TenantId": "your-tenant-id",
-          "ClientId": "your-client-id",
-          "FilterExpression": "path:\"https://your-sharepoint-site.sharepoint.com\""
-        }
+         "AzureAd": {
+           "TenantId": "your-tenant-id",
+           "ClientId": "your-client-id"
+         },
+         "AzureAIFoundry": {
+           "ProjectEndpoint": "your-azure-ai-inference-endpoint",
+           "ModelName": "your-model-name"
+         },
+         "Microsoft365": {
+           "TenantId": "your-tenant-id",
+           "ClientId": "your-client-id",
+           "FilterExpression": "path:\"https://your-sharepoint-site.sharepoint.com\""
+         }
       }
       ```
+   3. **Runtime Secret Creation**
+      This process is automatic and only applies for local development.
+      
+      1. **Ensure Your Account Has Permissions**:
+         - Log in through `azd auth login` with an account that has permissions to create secrets for the app configured in your `appsettings.json`'s `AzureAd:ClientId`
 
-      > [!NOTE]
-      > You will need your Azure AI inference endpoint (which is not your Azure AI Foundry Project endpoint). To get this navigate to `Models + Endpoints > name of Model` Switch the SDK to `Azure AI Inference SDK` and the code panel should have some code sample with the relevant endpoint. This endpoint will look something like `https://{projectName}.cognitiveservices.azure.com/openai/deployments/{modelName}`
+      2. **Run the Application**:
+         ```bash
+         dotnet run
+         ```
 
+         The application will automatically:
+         - Check if a client secret exists in configuration
+         - Get your current user ID from Microsoft Graph
+         - Clean up any existing secrets created by you (same user ID)
+         - Create a new user-specific secret with format: `{user-guid}-Auto-Generated-{date}` (expires in 24 hours)
+         - Configure it for the current session
 
-5. **Run Locally**
+      3. **Verify Operation**:
+         - Check the console output during startup for secret creation and cleanup messages
+         - The application will automatically handle user-specific secret management
+
+5. **Setup Access for Azure AI Foundry**
+   Access to Foundry will use a Managed Identity for deployed resources and `azd auth login` or `az login` credentials for local development. Make sure your `azd/az` logged in-user has access to Foundry this way:
+
+   1. Go to your Azure AI Foundry project in https://ai.azure.com/
+   2. Go to **Management Center** at the bottom
+   3. Under **All Resources** select your project
+   4. Under **Resource** > **Users**. Check if your user already has access through Inherited Access. If not, click the **+ New User**
+   5. Add all the users that will use your app to access this Foundry resource as an **Azure AI User**
+
+6. **Run Locally**
 
    ```bash
    # Install dependencies

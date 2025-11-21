@@ -6,6 +6,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Identity.Web;
 using Microsoft.Identity.Web.UI;
 using Microsoft.AspNetCore.HttpOverrides;
+using Azure.Identity;
 using AgentWithSPKnowledgeViaRetrieval.Models;
 using AgentWithSPKnowledgeViaRetrieval.Services;
 
@@ -23,13 +24,67 @@ class Program
             .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
             .AddEnvironmentVariables();
 
+        // Add user secrets in development
+        if (builder.Environment.IsDevelopment())
+        {
+            builder.Configuration.AddUserSecrets<Program>();
+
+            // Handle runtime secret creation BEFORE configuring authentication
+            var clientSecret = builder.Configuration["AzureAd:ClientSecret"];
+
+            if (string.IsNullOrEmpty(clientSecret))
+            {
+                try
+                {
+                    Console.WriteLine("No client secret found. Attempting to create one using runtime secret creation...");
+
+                    // Create services needed for secret creation
+                    var loggerFactory = LoggerFactory.Create(builder => builder.AddConsole());
+                    var appRegLogger = loggerFactory.CreateLogger<AppRegistrationService>();
+                    var runtimeLogger = loggerFactory.CreateLogger<RuntimeSecretService>();
+
+                    var appRegistrationService = new AppRegistrationService(appRegLogger);
+                    var runtimeSecretService = new RuntimeSecretService(appRegistrationService, builder.Configuration, runtimeLogger);
+
+                    var clientId = builder.Configuration["AzureAd:ClientId"];
+                    if (!string.IsNullOrEmpty(clientId))
+                    {
+                        // Create the user-specific secret synchronously (since we're in startup)
+                        var newSecret = runtimeSecretService.EnsureClientSecretAsync().GetAwaiter().GetResult();
+
+                        // Add the secret to configuration as an in-memory source
+                        var memoryConfig = new Dictionary<string, string?>
+                        {
+                            ["AzureAd:ClientSecret"] = newSecret
+                        };
+                        builder.Configuration.AddInMemoryCollection(memoryConfig);
+
+                        Console.WriteLine("Successfully created and configured client secret.");
+                    }
+                    else
+                    {
+                        Console.WriteLine("Warning: AzureAd:ClientId not found in configuration. Cannot create client secret.");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Failed to create client secret: {ex.Message}");
+                    Console.WriteLine("Application will continue but may fail during authentication.");
+                }
+            }
+
+            // Register runtime secret services for ongoing management
+            builder.Services.AddScoped<IAppRegistrationService, AppRegistrationService>();
+            builder.Services.AddScoped<IRuntimeSecretService, RuntimeSecretService>();
+        }
+
         // Add Microsoft Identity platform authentication
         builder.Services.AddMicrosoftIdentityWebAppAuthentication(builder.Configuration, "AzureAd")
             .EnableTokenAcquisitionToCallDownstreamApi(new[] {
                 "https://graph.microsoft.com/Files.Read.All",
                 "https://graph.microsoft.com/Sites.Read.All",
                 "https://graph.microsoft.com/Mail.Send",
-                "https://graph.microsoft.com/User.Read.All"
+                "https://graph.microsoft.com/User.Read"
             })
             .AddInMemoryTokenCaches();
 
@@ -45,6 +100,7 @@ class Program
         builder.Services.Configure<ChatSettingsOptions>(builder.Configuration.GetSection("ChatSettings"));
 
         // Register services
+        builder.Services.AddScoped<IMultiResourceTokenService, MultiResourceTokenService>();
         builder.Services.AddScoped<IRetrievalService, CopilotRetrievalService>();
         builder.Services.AddScoped<IFoundryService, FoundryService>();
         builder.Services.AddScoped<IChatService, ChatService>();

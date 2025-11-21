@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Identity.Web;
 using AgentWithSPKnowledgeViaRetrieval.Models;
 using AgentWithSPKnowledgeViaRetrieval.Services;
+using AgentWithSPKnowledgeViaRetrieval.Filters;
 using System.Diagnostics;
 
 namespace AgentWithSPKnowledgeViaRetrieval.Controllers;
@@ -52,13 +53,23 @@ public class HomeController : Controller
         return View();
     }
 
+    [HttpGet]
+    public IActionResult RunComplianceCheck()
+    {
+        return RedirectToAction(nameof(Index));
+    }
+
     [Authorize]
+    [AuthorizeForScopes(Scopes = new string[] { 
+        "https://cognitiveservices.azure.com/user_impersonation"
+    })]
     [AuthorizeForScopes(Scopes = new string[] { 
         "https://graph.microsoft.com/Files.Read.All", 
         "https://graph.microsoft.com/Sites.Read.All", 
         "https://graph.microsoft.com/Mail.Send", 
-        "https://graph.microsoft.com/User.Read.All" 
+        "https://graph.microsoft.com/User.Read" 
     })]
+    [EnsureTokensAcquired]
     [HttpPost]
     public async Task<IActionResult> RunComplianceCheck(CancellationToken cancellationToken)
     {
@@ -81,39 +92,39 @@ public class HomeController : Controller
             ViewBag.ReadyForCompliance = true;
 
             // Send email with results
-            if (!string.IsNullOrEmpty(response.FileAuthor))
-            {
-                try
-                {
-                    var emailResult = await _mailService.SendMailAsync(
-                        response.FileAuthor,
-                        response.LlmResponse,
-                        "compliance-check",
-                        cancellationToken);
+            // if (!string.IsNullOrEmpty(response.FileAuthor))
+            // {
+            //     try
+            //     {
+            //         var emailResult = await _mailService.SendMailAsync(
+            //             response.FileAuthor,
+            //             response.LlmResponse,
+            //             "compliance-check",
+            //             cancellationToken);
                     
-                    if (emailResult.Success)
-                    {
-                        ViewBag.EmailSent = true;
-                        ViewBag.EmailMessage = emailResult.Message;
-                    }
-                    else
-                    {
-                        ViewBag.EmailSent = false;
-                        ViewBag.EmailError = emailResult.Message;
-                    }
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogWarning(ex, "Unexpected error while sending email notification");
-                    ViewBag.EmailSent = false;
-                    ViewBag.EmailError = "An unexpected error occurred while sending email notification";
-                }
-            }
-            else
-            {
-                ViewBag.EmailSent = false;
-                ViewBag.EmailError = "No file author found - unable to send email notification";
-            }
+            //         if (emailResult.Success)
+            //         {
+            //             ViewBag.EmailSent = true;
+            //             ViewBag.EmailMessage = emailResult.Message;
+            //         }
+            //         else
+            //         {
+            //             ViewBag.EmailSent = false;
+            //             ViewBag.EmailError = emailResult.Message;
+            //         }
+            //     }
+            //     catch (Exception ex)
+            //     {
+            //         _logger.LogWarning(ex, "Unexpected error while sending email notification");
+            //         ViewBag.EmailSent = false;
+            //         ViewBag.EmailError = "An unexpected error occurred while sending email notification";
+            //     }
+            // }
+            // else
+            // {
+            //     ViewBag.EmailSent = false;
+            //     ViewBag.EmailError = "No file author found - unable to send email notification";
+            // }
 
             return View("Index");
         }
